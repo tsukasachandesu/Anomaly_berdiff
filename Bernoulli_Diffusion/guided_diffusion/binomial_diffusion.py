@@ -5,14 +5,10 @@ import numpy as np
 import torch as th
 from torch.distributions.binomial import Binomial
 from .train_util import visualize
-from visdom import Visdom
 import matplotlib.pyplot as plt
 from .basic_module import mean_flat
 from .losses import binomial_kl, binomial_log_likelihood
 import sys
-from visdom import Visdom
-viz = Visdom(port=8850)
-
 
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
     """

@@ -21,7 +21,6 @@ import scipy
 start = torch.cuda.Event(enable_timing=True)
 end = torch.cuda.Event(enable_timing=True)
 import torchvision.transforms.functional as F
-from evaluation import apply_2d_median_filter,filter_2d_connected_components
 torch.manual_seed(0)
 import random
 random.seed(0)
@@ -40,9 +39,6 @@ from guided_diffusion.script_util import (
     add_dict_to_argparser,
 )
 from guided_diffusion.train_util import TrainLoop
-from visdom import Visdom
-viz = Visdom(port=8850)
-
 
 from models.binaryae import BinaryAutoEncoder, Generator
 from hparams import get_sampler_hparams
@@ -53,23 +49,9 @@ def dice_score(pred, targs):
     pred = (pred>0).float()
     return 2. * (pred*targs).sum() / (pred+targs).sum()
 
-
-
-
 def main():
 
     H = get_sampler_hparams()
-
-    ae_state_dict = retrieve_autoencoder_components_state_dicts(
-        H,
-        ['encoder', 'quantize', 'generator'],
-        remove_component_from_key=False
-    )
-
-    bergan = BinaryAutoEncoder(H)
-    bergan.load_state_dict(ae_state_dict, strict=True)
-    bergan = bergan.cuda()
-    del ae_state_dict
 
     args, unknown = create_argparser().parse_known_args()
     print('args', args)
@@ -101,23 +83,18 @@ def main():
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     print('unet', count_parameters(model))
-    print('AE', count_parameters(bergan))
 
     logger.log("sampling...")
+    args.num_samples = 1
+    logger.log(args.num_samples)
 
     k=0
     while k < args.num_samples:
         k+=1
         if args.dataset=='brats':
-            data, out = next(val_loader)
-            batch=data[:,:4,...]
-        elif args.dataset == 'OCT':
-            data, out = next(val_loader)
-            batch = data
+            data = next(val_loader)
+            batch=data
         print('batch', batch.shape)
-        viz.image(visualize(batch[0, 0, ...]), opts=dict(caption="img input 0"))
-
-
 
         model_kwargs = {}
         sample_fn = (
@@ -125,9 +102,8 @@ def main():
         )
 
         img=batch.cuda()
-        start.record()
 
-        code = bergan(img, code_only=True).detach()
+        code = img
 
         sample, mask= sample_fn(
             model,
@@ -137,17 +113,8 @@ def main():
             noise_level=args.noise_level,
             model_kwargs=model_kwargs,
         )
-        img=torch.zeros(args.batch_size, 4, 256,256)
-        reconstruction,_,_ = bergan(img, code_only=False, code=sample)
-        end.record()
-        torch.cuda.synchronize()
-        print('elapsed time', start.elapsed_time(end))
 
-        reconstruction=torch.clamp(reconstruction,0,1).detach().cpu()
-        #plot the results on visdom
-        viz.image(visualize(reconstruction[0, 0, ...]), opts=dict(caption="generated reconstruction 0"))
-        diff = torch.abs(reconstruction[0, ...] - batch[0,...].cpu()).square().sum(dim=0)
-        viz.image(diff, opts=dict(caption="anomaly map"))
+        torch.cuda.synchronize()
 
     dist.barrier()
     logger.log("sampling complete")

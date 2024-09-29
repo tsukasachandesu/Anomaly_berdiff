@@ -62,7 +62,7 @@ def main2():
     TrainLoop(
         model=model,
         diffusion=diffusion,
-        autoencoder=bergan,
+        autoencoder=None,
         data=datal,
         batch_size=args.batch_size,
         microbatch=args.microbatch,

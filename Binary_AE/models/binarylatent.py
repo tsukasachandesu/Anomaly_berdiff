@@ -9,8 +9,7 @@ from utils.train_utils import visualize
 
 import pdb
 from torch import nn
-from visdom import Visdom
-viz = Visdom(port=8850)
+
 class BinaryDiffusion(Sampler):
     def __init__(self, H, denoise_fn, mask_id, embedding_weight):
         super().__init__(H, embedding_weight=embedding_weight)

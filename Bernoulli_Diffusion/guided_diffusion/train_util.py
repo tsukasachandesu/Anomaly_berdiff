@@ -13,13 +13,9 @@ from . import dist_util, logger
 from .fp16_util import MixedPrecisionTrainer
 from .nn import update_ema
 from .resample import LossAwareSampler, UniformSampler
-from visdom import Visdom
 import torch.nn.functional as nn
-
-viz = Visdom(port=8850)
 import torch
 import sys
-from visdom import Visdom
 sys.path.append('../BinaryLatentDiffusion')
 from utils.train_utils import EMA, NativeScalerWithGradNormCount, visualize
 loss_window = viz.line( Y=th.zeros((1)).cpu(), X=th.zeros((1)).cpu(), opts=dict(xlabel='epoch', ylabel='Loss', title='loss'))
@@ -228,7 +224,7 @@ class TrainLoop:
         self.mp_trainer.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):
             micro = batch[i : i + self.microbatch].to(dist_util.dev())
-            code = self.autoencoder(micro, code_only=True).detach()
+            code = code
             micro_cond =  {}
 
             last_batch = (i + self.microbatch) >= batch.shape[0]

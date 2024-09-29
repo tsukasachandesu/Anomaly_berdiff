@@ -41,7 +41,7 @@ def main2():
 
     logger.log("creating model and diffusion...")
 
-    print(args_to_dict(args, model_and_diffusion_defaults().keys())
+    print(args_to_dict(args, model_and_diffusion_defaults().keys()))
 
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
@@ -60,6 +60,8 @@ def main2():
         image_size=args.image_size,
         class_cond=True
     )
+
+    print(args)
 
     logger.log("training...")
     TrainLoop(
@@ -91,10 +93,10 @@ def create_argparser():
         img_channels=1,
         weight_decay=0.0,
         lr_anneal_steps=0,
-        batch_size=16,
+        batch_size=4,
         microbatch=-1,  # -1 disables microbatches
         log_interval=100,
-        save_interval=1000,
+        save_interval=100,
         resume_checkpoint='',
         use_fp16=False,
         fp16_scale_growth=1e-3,
@@ -102,12 +104,12 @@ def create_argparser():
         ae_load_dir = '../BinaryLatentDiffusion/logs/binaryae_brats',
         ae_load_step= 00000,
         sampler="bld",
-        codebook_size=64,
+        codebook_size=128,
         nf=32,
         img_size=128,
         latent_shape=[1, 64, 64],
         n_channels = 1,
-        ch_mult=[1,2,2],
+        ch_mult=[1, 1, 2, 3, 4],
         mean_type = "epsilon"
     )
     H = get_sampler_hparams()

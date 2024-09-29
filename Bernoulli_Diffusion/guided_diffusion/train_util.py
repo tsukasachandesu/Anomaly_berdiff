@@ -18,8 +18,6 @@ import torch
 import sys
 sys.path.append('../BinaryLatentDiffusion')
 from utils.train_utils import EMA, NativeScalerWithGradNormCount, visualize
-loss_window = viz.line( Y=th.zeros((1)).cpu(), X=th.zeros((1)).cpu(), opts=dict(xlabel='epoch', ylabel='Loss', title='loss'))
-
 
 INITIAL_LOG_LOSS_SCALE = 20.0
 

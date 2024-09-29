@@ -19,6 +19,7 @@ import sys
 sys.path.append('../BinaryLatentDiffusion')
 from utils.train_utils import EMA, NativeScalerWithGradNormCount, visualize
 
+
 INITIAL_LOG_LOSS_SCALE = 20.0
 
 def visualize(img):
@@ -185,9 +186,9 @@ class TrainLoop:
         ):
 
             self.iterdatal = iter(self.datal)
-            batch, cond = next(self.datal)
-            self.run_step(batch, cond)
-            loss, sample = self.run_step(batch, cond)
+            batch = next(self.datal)
+            self.run_step(batch, batch)
+            loss, sample = self.run_step(batch, batch)
             i+=1
             totloss+=loss
             if i % 10 == 0:
@@ -222,12 +223,14 @@ class TrainLoop:
         self.mp_trainer.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):
             micro = batch[i : i + self.microbatch].to(dist_util.dev())
-            code = code
+            code = micro
             micro_cond =  {}
 
             last_batch = (i + self.microbatch) >= batch.shape[0]
             t, weights = self.schedule_sampler.sample(micro.shape[0], dist_util.dev())
-
+            
+            print(t.shape)
+            print(code.shape)
             compute_losses = functools.partial(
                 self.diffusion.training_losses,
                 self.ddp_model,
@@ -364,3 +367,4 @@ def log_loss_dict(diffusion, ts, losses):
         for sub_t, sub_loss in zip(ts.cpu().numpy(), values.detach().cpu().numpy()):
             quartile = int(4 * sub_t / diffusion.num_timesteps)
             logger.logkv_mean(f"{key}_q{quartile}", sub_loss)
+

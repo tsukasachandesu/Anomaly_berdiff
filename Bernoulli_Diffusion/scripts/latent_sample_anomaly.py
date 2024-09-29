@@ -45,6 +45,9 @@ from hparams import get_sampler_hparams
 from utils.sampler_utils import retrieve_autoencoder_components_state_dicts, \
     get_sampler, get_online_samples, get_online_samples_guidance, get_samples_test, get_samples_temp, get_samples_loop
 
+import numpy as np
+from PIL import Image
+
 def dice_score(pred, targs):
     pred = (pred>0).float()
     return 2. * (pred*targs).sum() / (pred+targs).sum()
@@ -101,7 +104,16 @@ def main():
             diffusion.p_sample_loop_anomaly if not args.use_ddim else diffusion.ddim_sample_loop_anomaly
         )
 
+
+        batch = torch.randint(0, 2, (1, 1, 128, 128), dtype=torch.float32)
+
+        pre = np.array(batch[0][0], dtype=np.uint8)
+        pre = (pre  * 255).astype(np.uint8)
+        pre = Image.fromarray(pre)
+        pre.save("/content/sample_data/1.jpg")
+
         img=batch.cuda()
+
 
         code = img
 
@@ -114,6 +126,18 @@ def main():
             model_kwargs=model_kwargs,
         )
 
+        pre = np.array(sample.detach().cpu().numpy()[0][0], dtype=np.uint8)
+        pre = (pre  * 255).astype(np.uint8)
+        pre = Image.fromarray(pre)
+        pre.save("/content/sample_data/2.jpg")
+
+        pre = np.array(mask.detach().cpu().numpy()[0][0], dtype=np.uint8)
+        pre = (pre  * 255).astype(np.uint8)
+        pre = Image.fromarray(pre)
+        pre.save("/content/sample_data/3.jpg")
+
+        print(sample.shape)
+
         torch.cuda.synchronize()
 
     dist.barrier()
@@ -122,13 +146,13 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        num_samples=1038,
+        num_samples=1,
         batch_size=1,
         prob_threshold=0.5,
         noise_level=200,
         data_dir="./data/brats/validation",
         use_ddim=True,
-        model_path='./results/brats000000.pt',
+        model_path='/content/Anomaly_berdiff/results/brats000200.pt',
         use_fp16=False,
         img_channels=4,
         weight_decay=0.0,

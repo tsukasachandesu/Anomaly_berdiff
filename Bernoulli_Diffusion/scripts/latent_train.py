@@ -21,28 +21,14 @@ from guided_diffusion.train_util import TrainLoop
 
 import torch
 
-
-from models.binaryae import BinaryAutoEncoder, Generator
 from hparams import get_sampler_hparams
 from utils.sampler_utils import retrieve_autoencoder_components_state_dicts, \
     get_sampler, get_online_samples, get_online_samples_guidance, get_samples_test, get_samples_temp, get_samples_loop
-
 
 def main2():
 
     H = get_sampler_hparams()
     H.norm_first = True
-
-    ae_state_dict = retrieve_autoencoder_components_state_dicts(
-        H,
-        ['encoder', 'quantize', 'generator'],
-        remove_component_from_key=False
-    )
-
-    bergan = BinaryAutoEncoder(H)
-    bergan.load_state_dict(ae_state_dict, strict=True)
-    bergan = bergan.cuda()
-    del ae_state_dict
 
     args, unknown = create_argparser().parse_known_args()
     print(args)

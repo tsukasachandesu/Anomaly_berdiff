@@ -50,140 +50,41 @@ def load_data(
 
     classes = None
 
+    dataset = DataLoader(ImageDataset("/content/2", 128, True), batch_size=batch_size,shuffle=False, num_workers=4, pin_memory=True)
 
-    dataset = ImageDataset(
-        image_size,
-        data_dir,
-        classes=classes,
-        shard=0,
-        num_shards=1,
-        random_crop=random_crop,
-        random_flip=random_flip,
-    )
-    print('length', len(dataset))
-    if deterministic:
-        loader = DataLoader(
-            dataset, batch_size=batch_size, shuffle=False, num_workers=20, drop_last=True
-        )
-    else:
-        loader = DataLoader(
-            dataset, batch_size=batch_size, shuffle=True, num_workers=20, drop_last=True
-        )
     print('lenloader', len(loader))
    # return loader
     while True:
         yield from loader
 
-
-def _list_image_files_recursively(data_dir):
-    results = []
-    for entry in sorted(bf.listdir(data_dir)):
-        full_path = bf.join(data_dir, entry)
-        ext = entry.split(".")[-1]
-        if "." in entry and ext.lower() in ["jpg", "jpeg", "png", "gif", "npy"]:
-            results.append(full_path)
-        elif bf.isdir(full_path):
-            results.extend(_list_image_files_recursively(full_path))
-    return results
-
-
 class ImageDataset(Dataset):
-    def __init__(
-        self,
-        resolution,
-        image_paths,
-        classes=None,
-        shard=0,
-        num_shards=1,
-        random_crop=False,
-        random_flip=False,
-        exts=['jpg', 'jpeg', 'png', 'npy', 'nii.gz']
-    ):
-        super().__init__()
-        self.resolution = resolution
-        self.local_images = [p for ext in exts for p in Path(f'{image_paths}').glob(f'**/*.{ext}')]
-
-
-        self.local_classes = None if classes is None else classes[shard:][::num_shards]
+    def __init__(self, folder_path, max_length, random_crop=True):
+        self.folder_path = folder_path
+        self.max_length = max_length
         self.random_crop = random_crop
-        self.random_flip = random_flip
+        self.file_list = [f for f in os.listdir(folder_path) if f.endswith('.npy')]
+        self.preprocessed_data = []
+        for file in self.file_list:
+          file_path = os.path.join(folder_path, file)
+          data = np.load(file_path, mmap_mode='r')
+          self.preprocessed_data.append(self._preprocess(data))
 
     def __len__(self):
-        print('len',  len(self.local_images))
-        return len(self.local_images)
+        return len(self.file_list)
+
+    def _preprocess(self, data):
+      if data.shape[0] > self.max_length:
+        if self.random_crop:
+          start = np.random.randint(0, data.shape[0] - self.max_length)
+          data = data[start:start+self.max_length, :]
+        else:
+          data = data[:self.max_length, :]
+      elif data.shape[0] < self.max_length:
+        pad_width = ((0, self.max_length - data.shape[0]), (0, 0))
+        data = np.pad(data, pad_width, mode='constant')
+      data = torch.from_numpy(data).float()
+      data = data.unsqueeze(0)
+      return data
 
     def __getitem__(self, idx):
-        path = self.local_images[idx]
-
-        name=str(path).split("/")[-1].split(".")[0]
-
-
-        if 'NORMAL' in name or 'DRUSEN' in name or 'CNV' in name or 'DME' in name:   #check whether we are in the OCT dataset
-            img = Image.open(path)
-            arr=img.resize((256,256))
-            arr = np.array(arr)
-            arr=th.tensor(arr)[None,...].float()
-
-        else:
-            sample = nib.load(path)
-            arr = th.from_numpy(np.asarray(sample.dataobj).astype(dtype='float32'))
-
-        arr = visualize(arr)
-        out_dict = {"name": name}
-
-        return arr, out_dict
-
-def center_crop_arr(pil_image, image_size):
-    # We are not on a new enough PIL to support the `reducing_gap`
-    # argument, which uses BOX downsampling at powers of two first.
-    # Thus, we do it by hand to improve downsample quality.
-    while min(*pil_image.size) >= 3* image_size:
-        pil_image = pil_image.resize(
-            tuple(x // 2 for x in pil_image.size), resample=Image.BOX
-        )
-
-    scale = image_size / min(*pil_image.size)
-    pil_image = pil_image.resize(
-        tuple(round(x * scale) for x in pil_image.size), resample=Image.BICUBIC
-    )
-
-    arr = np.array(pil_image)
-    crop_y = (arr.shape[0] - image_size) // 2
-    crop_x = (arr.shape[1] - image_size) // 2
-   # crop_y=64; crop_x=64
-    return arr[crop_y : crop_y + image_size, crop_x : crop_x + image_size]
-
-def zeropatch(pil_image, image_size):
-    im=np.array(th.zeros(image_size, image_size,3))
-    arr = np.array(pil_image)
-    crop_x = (-arr.shape[0] + image_size)
-    crop_y = abs(arr.shape[1] - image_size) // 2
-  #  print('crop', crop_y, crop_x) #crop_y=64; crop_x=64
-    im[0:arr.shape[0] , crop_y : crop_y +arr.shape[1],:]=arr
-
-    return im#arr[crop_y : crop_y + image_size, crop_x : crop_x + image_size]
-
-
-
-def random_crop_arr(pil_image, image_size, min_crop_frac=0.8, max_crop_frac=1.0):
-    min_smaller_dim_size = math.ceil(image_size / max_crop_frac)
-    max_smaller_dim_size = math.ceil(image_size / min_crop_frac)
-    smaller_dim_size = random.randrange(min_smaller_dim_size, max_smaller_dim_size + 1)
-
-    # We are not on a new enough PIL to support the `reducing_gap`
-    # argument, which uses BOX downsampling at powers of two first.
-    # Thus, we do it by hand to improve downsample quality.
-    while min(*pil_image.size) >= 2 * smaller_dim_size:
-        pil_image = pil_image.resize(
-            tuple(x // 2 for x in pil_image.size), resample=Image.BOX
-        )
-
-    scale = smaller_dim_size / min(*pil_image.size)
-    pil_image = pil_image.resize(
-        tuple(round(x * scale) for x in pil_image.size), resample=Image.BICUBIC
-    )
-
-    arr = np.array(pil_image)
-    crop_y = random.randrange(arr.shape[0] - image_size + 1)
-    crop_x = random.randrange(arr.shape[1] - image_size + 1)
-    return arr[crop_y : crop_y + image_size, crop_x : crop_x + image_size]
+      return self.preprocessed_data[idx]

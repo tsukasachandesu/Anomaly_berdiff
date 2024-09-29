@@ -16,8 +16,8 @@ def model_and_diffusion_defaults():
     """
     print('got defaults here')
     return dict(
-        image_size=32,
-        img_channels=128,
+        image_size=128,
+        img_channels=1,
         num_channels=128,
         num_res_blocks=2,
         num_heads=1,
@@ -27,7 +27,7 @@ def model_and_diffusion_defaults():
         diffusion_steps=1000,
         noise_schedule="linear",
         timestep_respacing=[1000],
-        ltype="bce",
+        ltype="mix",
         mean_type="epsilon",
         rescale_timesteps=True,
         use_checkpoint=False,
@@ -113,7 +113,6 @@ def create_model(
 
     out_channels=img_channels#=1
     
-    
     model = UNetModel(
         in_channels=img_channels,
         model_channels=num_channels,
@@ -136,7 +135,7 @@ def create_binomial_diffusion(
     steps=1000,
     noise_schedule="linear",
     ltype="mix",
-    mean_type="xstart",
+    mean_type="epsilon",
     rescale_timesteps=False,
     timestep_respacing="",
 ):

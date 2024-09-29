@@ -51,7 +51,7 @@ def load_data(
 
     classes = None
 
-    dataset = DataLoader(ImageDataset("/content/2", 128, True), batch_size=batch_size,shuffle=False, num_workers=4, pin_memory=True)
+    loader = DataLoader(ImageDataset("/content/2", 128, True), batch_size=batch_size,shuffle=False, num_workers=4, pin_memory=True)
 
     print('lenloader', len(loader))
    # return loader

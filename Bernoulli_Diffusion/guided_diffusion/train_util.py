@@ -191,13 +191,6 @@ class TrainLoop:
             loss, sample = self.run_step(batch, batch)
             i+=1
             totloss+=loss
-            if i % 10 == 0:
-                viz.line(X=th.ones((1, 1)).cpu() * i, Y=th.Tensor([totloss]).unsqueeze(0).cpu(),
-                         win=loss_window, name='loss_cls',
-                         update='append')
-                totloss=0
-            if i % 2000 == 0:
-                viz.image(visualize(sample[0,0, ...]), opts=dict(caption="sample"))
 
             if self.step % self.log_interval == 0:
                 logger.dumpkvs()
